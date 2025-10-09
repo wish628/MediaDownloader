@@ -1,0 +1,15 @@
+# Python virtual environment
+venv/
+
+# PyInstaller build artifacts
+*.spec
+build/
+dist/
+
+# Downloads (your app's output)
+downloads/
+
+# Icon build artifact if it's generated (optional, only if icon.ico.png exists and isn't your primary icon)
+ffmpeg.exe
+ffprobe.exe
+app_settings.txt
