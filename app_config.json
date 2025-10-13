@@ -1,0 +1,7 @@
+{
+  "quality": "Best",
+  "audio_format": "mp3",
+  "max_retries": 10,
+  "use_proxy": false,
+  "proxy_url": ""
+}
