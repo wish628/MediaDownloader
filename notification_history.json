@@ -1,0 +1,138 @@
+[
+  {
+    "id": 1,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T13:52:08.463832",
+    "read": false
+  },
+  {
+    "id": 2,
+    "title": "Up to Date",
+    "message": "Media engine is up to date",
+    "type": "success",
+    "timestamp": "2025-10-13T13:57:34.291355",
+    "read": false
+  },
+  {
+    "id": 3,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T14:43:58.412515",
+    "read": false
+  },
+  {
+    "id": 4,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T14:49:23.183597",
+    "read": false
+  },
+  {
+    "id": 5,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T15:10:16.334917",
+    "read": false
+  },
+  {
+    "id": 6,
+    "title": "Download Complete",
+    "message": "File '\u1218\u1225\u12cb\u12d5\u1275\u29f8\u29f8Meswaet\u29f8\u29f8Hanna Tekle\u29f8\u29f8Jul'2025.f251' downloaded successfully",
+    "type": "success",
+    "timestamp": "2025-10-13T15:16:36.003145",
+    "read": false
+  },
+  {
+    "id": 7,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T15:21:55.884936",
+    "read": false
+  },
+  {
+    "id": 8,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T15:32:52.652498",
+    "read": false
+  },
+  {
+    "id": 9,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T15:39:11.861119",
+    "read": false
+  },
+  {
+    "id": 10,
+    "title": "Download Failed",
+    "message": "Download failed: Unexpected Issue",
+    "type": "error",
+    "timestamp": "2025-10-13T15:42:42.619382",
+    "read": false
+  },
+  {
+    "id": 11,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T15:55:30.085145",
+    "read": false
+  },
+  {
+    "id": 12,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-13T16:03:56.174681",
+    "read": false
+  },
+  {
+    "id": 13,
+    "title": "Up to Date",
+    "message": "Media engine is up to date",
+    "type": "success",
+    "timestamp": "2025-10-13T16:04:14.792843",
+    "read": false
+  },
+  {
+    "id": 14,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-14T13:43:48.992391",
+    "read": false
+  },
+  {
+    "id": 15,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-14T13:45:52.661621",
+    "read": false
+  },
+  {
+    "id": 16,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-14T13:58:26.910364",
+    "read": false
+  },
+  {
+    "id": 17,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-14T16:01:49.236557",
+    "read": false
+  }
+]

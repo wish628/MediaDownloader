@@ -11,16 +11,17 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QLabel, QProgressBar, QFileDialog,
     QMessageBox, QDialog, QFormLayout, QComboBox, QCheckBox,
     QSpinBox, QMenu, QMenuBar, QTextEdit, QTableWidget, QTableWidgetItem,
-    QHeaderView, QStackedWidget
+    QHeaderView, QStackedWidget, QSystemTrayIcon, QMenu as QTrayMenu
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer
-from PyQt6.QtGui import QIcon # For application icon
+from PyQt6.QtNetwork import QLocalSocket, QLocalServer
+from PyQt6.QtGui import QIcon, QAction # For application icon
 
 # --- Update Checker Utility ---
 class UpdateChecker:
     YT_DLP_VERSION_URL = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
-    APP_VERSION = "1.0.0"  # Current application version
-    APP_VERSION_URL = "https://api.github.com/repos/your-username/your-repo/releases/latest"  # Replace with actual URL
+    APP_VERSION = "1.0.1"  # Updated application version
+    APP_VERSION_URL = "https://api.github.com/repos/wish628/MediaDownloader/releases/latest"  # GitHub repository URL
     
     @staticmethod
     def get_yt_dlp_version():
@@ -554,8 +555,12 @@ class PlaylistSelectionDialog(QDialog):
         layout.addWidget(instruction_label)
         
         # Playlist info
-        info_label = QLabel(f"Playlist: {playlist_info.get('title', 'Unknown')}\n"
-                           f"Total videos: {playlist_info.get('entries_count', 'Unknown')}")
+        playlist_title = playlist_info.get('title', 'Unknown Playlist')
+        entries = playlist_info.get('entries', [])
+        entries_count = len(entries) if entries else 0
+        
+        info_label = QLabel(f"Playlist: {playlist_title}\n"
+                           f"Total videos: {entries_count}")
         info_label.setStyleSheet("margin-bottom: 10px;")
         layout.addWidget(info_label)
         
@@ -642,6 +647,7 @@ class PlaylistSelectionDialog(QDialog):
             checkbox = self.video_list.cellWidget(row, 0)
             if isinstance(checkbox, QCheckBox) and checkbox.isChecked():
                 self.selected_videos.append(row)
+
         
         if not self.selected_videos:
             QMessageBox.warning(self, "No Selection", "Please select at least one video to download.")
@@ -657,6 +663,7 @@ class Downloader:
         self._progress_hook_callback = None # To set a UI callback for progress
         self._paused = False  # Track pause state
         self._cancelled = False  # Track cancel state
+        self.selected_videos = None  # Track selected videos for playlist downloads
 
     def set_progress_hook(self, callback):
         self._progress_hook_callback = callback
@@ -692,6 +699,7 @@ class Downloader:
         """Reset pause and cancel states"""
         self._paused = False
         self._cancelled = False
+        self.selected_videos = None  # Reset selected videos
 
     def extract_playlist_info(self, url):
         """Extract playlist information without downloading"""
@@ -705,13 +713,20 @@ class Downloader:
                 info = ydl.extract_info(url, download=False)
                 return info
             except Exception as e:
+                # Log the error for debugging
+                print(f"Playlist extraction error: {e}")
                 raise Exception(f"Failed to extract playlist info: {e}")
 
     def download_media(self, url, download_type, settings=None, selected_videos=None):
+        print(f"Starting download: type={download_type}, url={url}")
+        if selected_videos:
+            print(f"Selected videos: {selected_videos}")
+        
         os.makedirs(self.output_path, exist_ok=True) # Ensure output directory exists
 
         # Reset state for new download
         self.reset_state()
+        self.selected_videos = selected_videos
 
         ydl_opts = {
             'outtmpl': os.path.join(self.output_path, '%(title)s.%(ext)s'),
@@ -784,10 +799,12 @@ class Downloader:
             ydl_opts['playlistend'] = None  # Download all videos
             
             # If specific videos are selected, download only those
-            if selected_videos:
-                # This is a simplified approach - in practice, you might need to handle this differently
-                # depending on the specific requirements
-                pass
+            if selected_videos and len(selected_videos) > 0:
+                # Convert selected video indices to playlist indices (1-based)
+                # selected_videos contains 0-based indices from the dialog
+                playlist_indices = [str(idx + 1) for idx in selected_videos]
+                ydl_opts['playlist_items'] = ','.join(playlist_indices)
+                print(f"Playlist items to download: {ydl_opts['playlist_items']}")
             
             # Apply quality settings for playlist
             if settings and 'quality' in settings:
@@ -804,6 +821,8 @@ class Downloader:
         else:
             raise ValueError("Invalid download type specified.")
 
+        print(f"yt-dlp options: {ydl_opts}")
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 ydl.download([url])
@@ -812,6 +831,7 @@ class Downloader:
                 # Classify and format the error
                 classified_error = ErrorClassifier.classify_error(str(e))
                 formatted_error = ErrorClassifier.format_error_message(str(e), classified_error)
+                print(f"Download error: {e}")  # Log for debugging
                 return f"Download failed: {formatted_error}"
             except Exception as e:
                 # Check if it's a cancellation
@@ -820,6 +840,7 @@ class Downloader:
                 # Classify and format the error
                 classified_error = ErrorClassifier.classify_error(str(e))
                 formatted_error = ErrorClassifier.format_error_message(str(e), classified_error)
+                print(f"General error: {e}")  # Log for debugging
                 return f"Download failed: {formatted_error}"
     
     def _get_ffmpeg_path(self):
@@ -856,12 +877,13 @@ class DownloadManager:
         self.download_queue = []
         self.completed_downloads = []
         
-    def add_download(self, downloader, url, download_type, settings=None):
+    def add_download(self, downloader, url, download_type, settings=None, selected_videos=None):
         self.download_queue.append({
             'downloader': downloader,
             'url': url,
             'download_type': download_type,
-            'settings': settings
+            'settings': settings,
+            'selected_videos': selected_videos
         })
         
     def start_next_download(self):
@@ -873,7 +895,8 @@ class DownloadManager:
                 download_info['downloader'],
                 download_info['url'],
                 download_info['download_type'],
-                download_info['settings']
+                download_info['settings'],
+                download_info.get('selected_videos')  # Pass selected videos if available
             )
             
             self.active_downloads.append({
@@ -900,12 +923,13 @@ class DownloadThread(QThread):
     finished_signal = pyqtSignal(str) # To send final status
     error_signal = pyqtSignal(str) # To send error messages
 
-    def __init__(self, downloader, url, download_type, settings=None, parent=None):
+    def __init__(self, downloader, url, download_type, settings=None, selected_videos=None, parent=None):
         super().__init__(parent)
         self.downloader = downloader
         self.url = url
         self.download_type = download_type
         self.settings = settings or {}
+        self.selected_videos = selected_videos  # Track selected videos for playlist downloads
         # Set the downloader's hook to emit our signal
         self.downloader.set_progress_hook(self._threaded_progress_hook)
         self._paused = False
@@ -922,7 +946,7 @@ class DownloadThread(QThread):
 
     def run(self):
         try:
-            result = self.downloader.download_media(self.url, self.download_type, self.settings)
+            result = self.downloader.download_media(self.url, self.download_type, self.settings, self.selected_videos)
             # Check if the result indicates a failure
             if result.startswith("Download failed:"):
                 self.error_signal.emit(result)
@@ -954,6 +978,247 @@ class DownloadThread(QThread):
         if hasattr(self.downloader, 'cancel'):
             self.downloader.cancel()
 
+# --- Notification System ---
+class NotificationManager:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.notifications = []
+        self.max_notifications = 50  # Limit stored notifications
+        self.load_notification_history()
+        
+        # Try to initialize system tray icon for desktop notifications
+        self.tray_icon = None
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            try:
+                self.tray_icon = QSystemTrayIcon(parent)
+                if parent and hasattr(parent, '_get_icon_path'):
+                    icon_path = parent._get_icon_path()
+                    if icon_path and os.path.exists(icon_path):
+                        self.tray_icon.setIcon(QIcon(icon_path))
+                self.tray_icon.show()
+            except Exception as e:
+                print(f"Could not initialize system tray: {e}")
+    
+    def load_notification_history(self):
+        history_file = "notification_history.json"
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+            # Use getattr to avoid linter warnings
+            _MEIPASS = getattr(sys, '_MEIPASS', None)
+            if _MEIPASS:
+                base_path = _MEIPASS
+            history_path = os.path.join(base_path, history_file)
+        else:
+            history_path = history_file
+            
+        if os.path.exists(history_path):
+            try:
+                with open(history_path, "r") as f:
+                    self.notifications = json.load(f)
+            except Exception as e:
+                print(f"Error loading notification history: {e}")
+                self.notifications = []
+
+    def save_notification_history(self):
+        history_file = "notification_history.json"
+        if getattr(sys, 'frozen', False):
+            base_path = os.path.dirname(sys.executable)
+            # Use getattr to avoid linter warnings
+            _MEIPASS = getattr(sys, '_MEIPASS', None)
+            if _MEIPASS:
+                base_path = _MEIPASS
+            history_path = os.path.join(base_path, history_file)
+        else:
+            history_path = history_file
+            
+        try:
+            with open(history_path, "w") as f:
+                # Only save last 100 notifications to prevent file bloat
+                recent_notifications = self.notifications[-100:]
+                json.dump(recent_notifications, f, indent=2)
+        except Exception as e:
+            print(f"Error saving notification history: {e}")
+
+    def add_notification(self, title, message, notification_type="info", duration=5000):
+        """
+        Add a new notification
+        notification_type: info, warning, error, success
+        duration: milliseconds to show notification (0 for persistent)
+        """
+        notification = {
+            "id": len(self.notifications) + 1,
+            "title": title,
+            "message": message,
+            "type": notification_type,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "read": False
+        }
+        
+        self.notifications.append(notification)
+        
+        # Keep only the most recent notifications
+        if len(self.notifications) > self.max_notifications:
+            self.notifications.pop(0)
+        
+        # Show desktop notification if available
+        self._show_desktop_notification(title, message, notification_type, duration)
+        
+        # Save notification history
+        self.save_notification_history()
+        
+        return notification
+
+    def _show_desktop_notification(self, title, message, notification_type, duration):
+        """Show desktop notification using system tray"""
+        if self.tray_icon:
+            try:
+                # Map notification types to QSystemTrayIcon.MessageIcon
+                icon_map = {
+                    "info": QSystemTrayIcon.MessageIcon.Information,
+                    "warning": QSystemTrayIcon.MessageIcon.Warning,
+                    "error": QSystemTrayIcon.MessageIcon.Critical,
+                    "success": QSystemTrayIcon.MessageIcon.Information
+                }
+                
+                icon = icon_map.get(notification_type, QSystemTrayIcon.MessageIcon.NoIcon)
+                self.tray_icon.showMessage(title, message, icon, duration)
+            except Exception as e:
+                print(f"Error showing system tray notification: {e}")
+
+    def mark_as_read(self, notification_id):
+        """Mark a notification as read"""
+        for notification in self.notifications:
+            if notification["id"] == notification_id:
+                notification["read"] = True
+                break
+        self.save_notification_history()
+
+    def mark_all_as_read(self):
+        """Mark all notifications as read"""
+        for notification in self.notifications:
+            notification["read"] = True
+        self.save_notification_history()
+
+    def get_unread_count(self):
+        """Get count of unread notifications"""
+        return sum(1 for n in self.notifications if not n["read"])
+
+    def get_notifications(self, limit=None, unread_only=False):
+        """Get notifications, optionally filtered"""
+        notifications = self.notifications.copy()
+        
+        if unread_only:
+            notifications = [n for n in notifications if not n["read"]]
+            
+        if limit:
+            notifications = notifications[-limit:]  # Get most recent
+            
+        return notifications[::-1]  # Return in reverse chronological order
+
+    def clear_notifications(self):
+        """Clear all notifications"""
+        self.notifications.clear()
+        self.save_notification_history()
+
+# --- Notification Center Dialog ---
+class NotificationCenterDialog(QDialog):
+    def __init__(self, notification_manager, parent=None):
+        super().__init__(parent)
+        self.notification_manager = notification_manager
+        self.setWindowTitle("Notification Center")
+        self.setModal(False)
+        self.resize(500, 400)
+        
+        self.init_ui()
+        self.refresh_notifications()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        
+        # Header
+        header_layout = QHBoxLayout()
+        header_label = QLabel("Notifications")
+        header_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        
+        clear_button = QPushButton("Clear All")
+        clear_button.clicked.connect(self.clear_all)
+        
+        mark_read_button = QPushButton("Mark All as Read")
+        mark_read_button.clicked.connect(self.mark_all_read)
+        
+        header_layout.addWidget(header_label)
+        header_layout.addStretch()
+        header_layout.addWidget(mark_read_button)
+        header_layout.addWidget(clear_button)
+        layout.addLayout(header_layout)
+        
+        # Notification list
+        self.notification_list = QTableWidget()
+        self.notification_list.setColumnCount(3)
+        self.notification_list.setHorizontalHeaderLabels(["Type", "Message", "Time"])
+        self.notification_list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.notification_list.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.notification_list.setAlternatingRowColors(True)
+        
+        header = self.notification_list.horizontalHeader()
+        if header:
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        
+        layout.addWidget(self.notification_list)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.accept)
+        button_layout.addStretch()
+        button_layout.addWidget(close_button)
+        layout.addLayout(button_layout)
+        
+        self.setLayout(layout)
+
+    def refresh_notifications(self):
+        notifications = self.notification_manager.get_notifications()
+        self.notification_list.setRowCount(len(notifications))
+        
+        type_icons = {
+            "info": "ℹ️",
+            "warning": "⚠️",
+            "error": "❌",
+            "success": "✅"
+        }
+        
+        for row, notification in enumerate(notifications):
+            # Type column
+            type_item = QTableWidgetItem(type_icons.get(notification["type"], "ℹ️"))
+            type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.notification_list.setItem(row, 0, type_item)
+            
+            # Message column
+            message = f"{notification['title']}: {notification['message']}"
+            message_item = QTableWidgetItem(message)
+            self.notification_list.setItem(row, 1, message_item)
+            
+            # Time column
+            timestamp = datetime.datetime.fromisoformat(notification["timestamp"])
+            time_str = timestamp.strftime("%Y-%m-%d %H:%M")
+            time_item = QTableWidgetItem(time_str)
+            time_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.notification_list.setItem(row, 2, time_item)
+            
+            # Mark as read when viewed
+            if not notification["read"]:
+                self.notification_manager.mark_as_read(notification["id"])
+
+    def clear_all(self):
+        self.notification_manager.clear_notifications()
+        self.refresh_notifications()
+
+    def mark_all_read(self):
+        self.notification_manager.mark_all_as_read()
+        self.refresh_notifications()
+
 # --- PyQt6 GUI Application ---
 class DownloaderApp(QWidget):
     def __init__(self):
@@ -969,11 +1234,22 @@ class DownloaderApp(QWidget):
         self.last_update_check = None  # Track when we last checked for updates
         self.is_downloading = False  # Track download state
         self.last_downloaded_filename = None  # Track the last downloaded filename
+        
+        # Initialize notification system
+        self.notification_manager = NotificationManager(self)
+        
         self.initUI()
         self.load_settings() # Load last saved directory
         self.load_app_settings() # Load app settings
         self.load_download_history() # Load download history
         self.check_for_updates() # Check for updates on startup
+        
+        # Show startup notification
+        self.notification_manager.add_notification(
+            "Application Started", 
+            "Media Downloader is ready to use", 
+            "success"
+        )
 
     def initUI(self):
         self.setWindowTitle("Media Downloader")
@@ -1258,6 +1534,7 @@ class DownloaderApp(QWidget):
                 print(f"Error loading download history: {e}")
                 self.download_history = []
 
+
     def save_download_history(self):
         history_file = "download_history.json"
         if getattr(sys, 'frozen', False):
@@ -1303,12 +1580,59 @@ class DownloaderApp(QWidget):
             
         urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
         
-        # For single URL, use existing logic
-        if len(urls) == 1:
+        # For single URL with playlist type, show playlist selection
+        if len(urls) == 1 and download_type == "playlist":
+            self.process_playlist_url(urls[0])
+        elif len(urls) == 1:
+            # For single non-playlist URL, use existing logic
             self.process_single_url(urls[0], download_type)
         else:
             # For multiple URLs, use batch download
             self.process_batch_urls(urls, download_type)
+
+    def process_playlist_url(self, url):
+        """Handle playlist URL with selection dialog"""
+        try:
+            self.status_label.setText("Extracting playlist information...")
+            QApplication.processEvents()  # Update UI to show the message
+            
+            playlist_info = self.downloader.extract_playlist_info(url)
+            if playlist_info is None:
+                raise Exception("Failed to extract playlist information")
+            
+            # Check if playlist has entries
+            entries = playlist_info.get('entries', [])
+            if not entries:
+                QMessageBox.information(self, "Empty Playlist", 
+                                      "The playlist appears to be empty or private.\n\n"
+                                      "Please check if the playlist URL is correct and public.")
+                self.status_label.setText("Playlist is empty or inaccessible.")
+                return
+            
+            dialog = PlaylistSelectionDialog(playlist_info, self)
+            self.status_label.setText("Ready to download your media files.")
+            
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                # Use the selected videos from the dialog
+                selected_videos = dialog.selected_videos
+                if selected_videos:
+                    count = len(selected_videos)
+                    self.status_label.setText(f"Starting download of {count} selected videos...")
+                    # Create and start the download thread with settings and selected videos
+                    self.start_download_thread(url, "playlist", selected_videos)
+                else:
+                    self.status_label.setText("No videos selected for download.")
+            else:
+                # User cancelled the dialog
+                self.status_label.setText("Playlist download cancelled by user.")
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Playlist processing error: {error_msg}")  # Log for debugging
+            self.status_label.setText("Failed to process playlist.")
+            QMessageBox.warning(self, "Playlist Processing Error", 
+                              f"Could not process the playlist:\n\n{error_msg}\n\n"
+                              "Please check the URL and try again. If the problem persists, "
+                              "the playlist might be private or unavailable.")
 
     def process_single_url(self, url, download_type):
         # Auto-detect playlist URLs
@@ -1317,24 +1641,70 @@ class DownloaderApp(QWidget):
             playlist_indicators = ['playlist', 'list=', 'channel', 'user/']
             if any(indicator in url.lower() for indicator in playlist_indicators):
                 reply = QMessageBox.question(self, 'Playlist Detected', 
-                                           'This URL appears to be a playlist. Do you want to download the entire playlist?',
-                                           QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                           QMessageBox.StandardButton.No)
-                if reply == QMessageBox.StandardButton.Yes:
+                                           'This URL appears to be a playlist.\n\n'
+                                           'Do you want to:\n'
+                                           '• YES: Select specific videos from the playlist\n'
+                                           '• NO: Download the entire playlist\n'
+                                           '• Cancel: Cancel this operation',
+                                           QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                                           QMessageBox.StandardButton.Yes)
+                
+                if reply == QMessageBox.StandardButton.Cancel:
+                    self.status_label.setText("Operation cancelled by user.")
+                    return
+                elif reply == QMessageBox.StandardButton.Yes:
                     download_type = "playlist"
                     
                     # Extract playlist info and show selection dialog
                     try:
+                        self.status_label.setText("Extracting playlist information...")
+                        QApplication.processEvents()  # Update UI to show the message
+                        
                         playlist_info = self.downloader.extract_playlist_info(url)
+                        if playlist_info is None:
+                            raise Exception("Failed to extract playlist information")
+                        
+                        # Check if playlist has entries
+                        entries = playlist_info.get('entries', [])
+                        if not entries:
+                            QMessageBox.information(self, "Empty Playlist", 
+                                                  "The playlist appears to be empty or private.\n\n"
+                                                  "Please check if the playlist URL is correct and public.")
+                            self.status_label.setText("Playlist is empty or inaccessible.")
+                            return
+                        
                         dialog = PlaylistSelectionDialog(playlist_info, self)
+                        self.status_label.setText("Ready to download your media files.")
+                        
                         if dialog.exec() == QDialog.DialogCode.Accepted:
-                            # TODO: Implement selective playlist download
-                            # For now, we'll download the entire playlist
-                            pass
+                            # Use the selected videos from the dialog
+                            selected_videos = dialog.selected_videos
+                            if selected_videos:
+                                count = len(selected_videos)
+                                self.status_label.setText(f"Starting download of {count} selected videos...")
+                                # Create and start the download thread with settings and selected videos
+                                self.start_download_thread(url, download_type, selected_videos)
+                                return  # Exit early since we've started the download
+                            else:
+                                self.status_label.setText("No videos selected for download.")
+                                return
+                        else:
+                            # User cancelled the dialog
+                            self.status_label.setText("Playlist download cancelled by user.")
+                            return
                     except Exception as e:
-                        QMessageBox.warning(self, "Playlist Info Error", 
-                                          f"Could not extract playlist information: {e}\nDownloading entire playlist.")
+                        error_msg = str(e)
+                        print(f"Playlist processing error: {error_msg}")  # Log for debugging
+                        self.status_label.setText("Failed to process playlist.")
+                        QMessageBox.warning(self, "Playlist Processing Error", 
+                                          f"Could not process the playlist:\n\n{error_msg}\n\n"
+                                          "Downloading as a regular video instead.")
+                # If user clicked "No", we continue with download_type="playlist" to download the entire playlist
 
+        # For non-playlist downloads or if user chose to download entire playlist
+        self.start_download_thread(url, download_type)
+
+    def start_download_thread(self, url, download_type, selected_videos=None):
         # Disable buttons during download
         self.video_button.setEnabled(False)
         self.audio_button.setEnabled(False)
@@ -1354,7 +1724,7 @@ class DownloaderApp(QWidget):
         self.is_downloading = True
 
         # Create and start the download thread with settings
-        self.download_thread = DownloadThread(self.downloader, url, download_type, self.settings)
+        self.download_thread = DownloadThread(self.downloader, url, download_type, self.settings, selected_videos)
         self.download_thread.progress_signal.connect(self.update_progress)
         self.download_thread.finished_signal.connect(self.download_finished)
         self.download_thread.error_signal.connect(self.download_error)
@@ -1362,7 +1732,9 @@ class DownloaderApp(QWidget):
 
     def process_batch_urls(self, urls, download_type):
         # For batch downloads, create a queue
-        self.download_queue = [(url, download_type) for url in urls]
+        # Note: For simplicity, we're not handling playlist selection in batch mode
+        # In batch mode, playlists will be downloaded entirely
+        self.download_queue = [(url, download_type) for url in urls]  # (url, download_type)
         self.current_download_index = 0
         self.total_downloads = len(urls)
         
@@ -1380,7 +1752,8 @@ class DownloaderApp(QWidget):
         
         # Add all downloads to the download manager
         for url, d_type in self.download_queue:
-            self.download_manager.add_download(self.downloader, url, d_type, self.settings)
+            # For batch downloads, we don't handle playlist selection
+            self.download_manager.add_download(self.downloader, url, d_type, self.settings, None)
         
         # Start parallel downloads
         self.start_parallel_downloads()
@@ -1407,6 +1780,14 @@ class DownloaderApp(QWidget):
                 title = message.replace("Download complete!", "").strip() or "Downloaded Media"
         
         self.add_to_history(title, url, "Success")
+        
+        # Add notification
+        self.notification_manager.add_notification(
+            "Download Complete", 
+            f"File '{title}' downloaded successfully", 
+            "success"
+        )
+        
         QMessageBox.information(self, "Download Complete", 
                               f"Great job! Your file has been successfully downloaded.\n\n"
                               f"File: {title}\n"
@@ -1426,6 +1807,14 @@ class DownloaderApp(QWidget):
         formatted_error = ErrorClassifier.format_error_message(message, classified_error)
         
         self.add_to_history("Unknown Title", url, "Error: " + classified_error['category'])
+        
+        # Add notification
+        self.notification_manager.add_notification(
+            "Download Failed", 
+            f"Download failed: {classified_error['category']}", 
+            "error"
+        )
+        
         QMessageBox.critical(self, f"Download Issue - {classified_error['category']}", formatted_error)
 
     def update_progress(self, d):
@@ -1578,6 +1967,14 @@ class DownloaderApp(QWidget):
             
             self.add_to_history(title, url, "Success")
         
+        # Add notification for batch downloads
+        if self.current_download_index == self.total_downloads:
+            self.notification_manager.add_notification(
+                "Batch Download Complete", 
+                f"All {len(self.download_queue)} files downloaded successfully", 
+                "success"
+            )
+        
         # Move to next download
         self.current_download_index += 1
         
@@ -1594,6 +1991,10 @@ class DownloaderApp(QWidget):
         progress_percent = int((completed / self.total_downloads) * 100)
         self.progress_bar.setValue(progress_percent)
         
+        # Initialize error variables
+        classified_error = None
+        formatted_error = None
+        
         # Add to history
         if self.current_download_index < len(self.download_queue):
             url, _ = self.download_queue[self.current_download_index]
@@ -1609,6 +2010,20 @@ class DownloaderApp(QWidget):
             # Show error message for the first error in batch
             if self.current_download_index == 0:
                 QMessageBox.critical(self, f"Download Issue - {classified_error['category']}", formatted_error)
+        
+        # Add notification for batch download errors
+        if classified_error is not None:
+            self.notification_manager.add_notification(
+                "Batch Download Error", 
+                f"Error downloading item {self.current_download_index + 1}: {classified_error['category']}", 
+                "error"
+            )
+        else:
+            self.notification_manager.add_notification(
+                "Batch Download Error", 
+                f"Error downloading item {self.current_download_index + 1}", 
+                "error"
+            )
         
         # Move to next download
         self.current_download_index += 1
@@ -1647,6 +2062,12 @@ class DownloaderApp(QWidget):
                 )
                 if reply == QMessageBox.StandardButton.Yes:
                     self.update_yt_dlp()
+                # Add notification
+                self.notification_manager.add_notification(
+                    "Update Available", 
+                    f"New media engine version available: {update_info['latest_version']}", 
+                    "info"
+                )
         except Exception as e:
             print(f"Error checking for media engine updates: {e}")
         
@@ -1673,6 +2094,12 @@ class DownloaderApp(QWidget):
             
             if update_info['status'] == 'error':
                 QMessageBox.warning(self, "Update Check Failed", update_info['message'])
+                # Add notification
+                self.notification_manager.add_notification(
+                    "Update Check Failed", 
+                    "Failed to check for updates", 
+                    "error"
+                )
             elif update_info['status'] == 'update_available':
                 reply = QMessageBox.question(
                     self, 
@@ -1689,11 +2116,23 @@ class DownloaderApp(QWidget):
                     self.update_yt_dlp()
                 else:
                     self.status_label.setText("Update check completed - update available but skipped.")
+                    # Add notification
+                    self.notification_manager.add_notification(
+                        "Update Available", 
+                        f"Media engine update {update_info['latest_version']} available", 
+                        "info"
+                    )
             else:
                 QMessageBox.information(self, "Up to Date", 
                                       f"Great! Your media engine version ({update_info['current_version']}) is already up to date.\n\n"
                                       "You're enjoying the latest features and improvements.")
                 self.status_label.setText("Media engine is up to date.")
+                # Add notification
+                self.notification_manager.add_notification(
+                    "Up to Date", 
+                    "Media engine is up to date", 
+                    "success"
+                )
                 
         except Exception as e:
             QMessageBox.critical(self, "Update Check Failed", 
@@ -1701,6 +2140,12 @@ class DownloaderApp(QWidget):
                                f"• {str(e)}\n\n"
                                "Please try again later or check your network connection.")
             self.status_label.setText("Update check failed.")
+            # Add notification
+            self.notification_manager.add_notification(
+                "Update Check Failed", 
+                "Failed to check for updates", 
+                "error"
+            )
 
     def update_yt_dlp(self):
         """Update the media engine"""
@@ -1711,16 +2156,34 @@ class DownloaderApp(QWidget):
             if result['status'] == 'success':
                 QMessageBox.information(self, "Update Successful", result['message'])
                 self.status_label.setText("Media engine updated successfully!")
+                # Add notification
+                self.notification_manager.add_notification(
+                    "Update Successful", 
+                    "Media engine updated successfully", 
+                    "success"
+                )
             else:
                 QMessageBox.critical(self, "Update Failed", result['message'])
                 self.status_label.setText("Media engine update failed.")
+                # Add notification
+                self.notification_manager.add_notification(
+                    "Update Failed", 
+                    "Failed to update media engine", 
+                    "error"
+                )
         except Exception as e:
             QMessageBox.critical(self, "Update Failed", 
                                f"We encountered an unexpected issue while updating the media engine:\n\n"
                                f"• {str(e)}\n\n"
                                "Please try again or manually update using pip.")
             self.status_label.setText("Media engine update failed.")
-        
+            # Add notification
+            self.notification_manager.add_notification(
+                "Update Failed", 
+                "Failed to update media engine", 
+                "error"
+            )
+
 if __name__ == '__main__':
     # Ensure sys.argv is correctly handled for PyInstaller bundles
     if getattr(sys, 'frozen', False):
@@ -1741,7 +2204,39 @@ if __name__ == '__main__':
     # This helps when looking for ffmpeg.exe or icon.ico
     os.chdir(application_path)
 
+    # Create application
     app = QApplication(sys.argv)
+    
+    # Set application icon for Windows title bar
+    icon_path = os.path.join(os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+    
+    # Check for existing instance
+    socket = QLocalSocket()
+    socket.connectToServer("MediaDownloader_Instance_Check")
+    
+    if socket.waitForConnected(1000):
+        # Another instance is already running
+        print("Another instance of Media Downloader is already running.")
+        sys.exit(0)
+    
+    # Create server to prevent future instances
+    server = QLocalServer()
+    server.listen("MediaDownloader_Instance_Check")
+    
+    # Create and show main window
     ex = DownloaderApp()
     ex.show()
-    sys.exit(app.exec())
+    
+    # Try setting the window icon again after showing the window
+    icon_path = ex._get_icon_path()
+    if icon_path and os.path.exists(icon_path):
+        ex.setWindowIcon(QIcon(icon_path))
+    
+    # Start application
+    exit_code = app.exec()
+    
+    # Clean up server
+    server.close()
+    sys.exit(exit_code)

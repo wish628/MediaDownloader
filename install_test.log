@@ -1,0 +1,49 @@
+﻿2025-10-14 15:55:27.009   Log opened. (Time zone: UTC+03:00)
+2025-10-14 15:55:27.010   Setup version: Inno Setup version 6.5.4
+2025-10-14 15:55:27.010   Original Setup EXE: C:\Users\hp\Desktop\yt1\installer\Output\MediaDownloader_v1.0.1_Installer.exe
+2025-10-14 15:55:27.010   Setup command line: /SL5="$620942,47985788,878592,C:\Users\hp\Desktop\yt1\installer\Output\MediaDownloader_v1.0.1_Installer.exe" /SPAWNWND=$35094A /NOTIFYWND=$B00CE4 /VERYSILENT /LOG=install_test.log
+2025-10-14 15:55:27.010   Windows version: 10.0.19045
+2025-10-14 15:55:27.010   Windows architecture: x64 (64-bit)
+2025-10-14 15:55:27.010   Machine types supported by system: x86 x64
+2025-10-14 15:55:27.010   User privileges: Administrative
+2025-10-14 15:55:27.015   Administrative install mode: Yes
+2025-10-14 15:55:27.015   Install mode root key: HKEY_LOCAL_MACHINE
+2025-10-14 15:55:27.015   64-bit install mode: No
+2025-10-14 15:55:27.016   Created protected temporary directory: C:\Users\hp\AppData\Local\Temp\is-E8L51.tmp
+2025-10-14 15:55:27.106   Found 1 files to register with RestartManager.
+2025-10-14 15:55:27.106   Calling RestartManager's RmGetList.
+2025-10-14 15:55:27.111   RmGetList finished successfully.
+2025-10-14 15:55:27.111   RestartManager found no applications using one of our files.
+2025-10-14 15:55:27.117   Starting the installation process.
+2025-10-14 15:55:27.121   Creating directory: C:\Program Files (x86)\Media Downloader
+2025-10-14 15:55:27.122   Directory for uninstall files: C:\Program Files (x86)\Media Downloader
+2025-10-14 15:55:27.122   Creating new uninstall log: C:\Program Files (x86)\Media Downloader\unins000.dat
+2025-10-14 15:55:27.125   -- File entry --
+2025-10-14 15:55:27.125   Dest filename: C:\Program Files (x86)\Media Downloader\unins000.exe
+2025-10-14 15:55:27.127   Time stamp of our file: 2025-10-14 15:55:26.649
+2025-10-14 15:55:27.127   Installing the file.
+2025-10-14 15:55:27.155   Successfully installed the file.
+2025-10-14 15:55:27.157   -- File entry --
+2025-10-14 15:55:27.157   Dest filename: C:\Program Files (x86)\Media Downloader\MediaDownloader_v1.0.1.exe
+2025-10-14 15:55:27.157   Time stamp of our file: 2025-10-14 15:07:16.000
+2025-10-14 15:55:27.157   Installing the file.
+2025-10-14 15:55:33.506   Successfully installed the file.
+2025-10-14 15:55:33.506   -- File entry --
+2025-10-14 15:55:33.506   Dest filename: C:\Program Files (x86)\Media Downloader\icon.ico
+2025-10-14 15:55:33.507   Time stamp of our file: 2025-10-08 22:55:04.000
+2025-10-14 15:55:33.507   Installing the file.
+2025-10-14 15:55:33.512   Successfully installed the file.
+2025-10-14 15:55:33.512   -- Icon entry --
+2025-10-14 15:55:33.512   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Media Downloader.lnk
+2025-10-14 15:55:33.513   Creating the icon.
+2025-10-14 15:55:34.485   Successfully created the icon.
+2025-10-14 15:55:34.530   Saving uninstall information.
+2025-10-14 15:55:34.530   Deleting uninstall key left over from previous administrative 32-bit install.
+2025-10-14 15:55:34.531   Creating new uninstall key: HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\{1c877ae8-5b11-4bbf-b2b9-22f5ad768210}_is1
+2025-10-14 15:55:34.531   Writing uninstall key values.
+2025-10-14 15:55:34.534   Detected previous non administrative install? No
+2025-10-14 15:55:34.534   Detected previous administrative 64-bit install? No
+2025-10-14 15:55:34.600   Installation process succeeded.
+2025-10-14 15:55:34.601   Need to restart Windows? No
+2025-10-14 15:55:34.605   Deinitializing Setup.
+2025-10-14 15:55:34.612   Log closed.
