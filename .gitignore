@@ -1,15 +1,81 @@
 # Python virtual environment
 venv/
+env/
+ENV/
 
 # PyInstaller build artifacts
 *.spec
 build/
 dist/
+*.exe
 
-# Downloads (your app's output)
+# Download history and logs
 downloads/
+*.log
 
-# Icon build artifact if it's generated (optional, only if icon.ico.png exists and isn't your primary icon)
+# Icon build artifacts
 ffmpeg.exe
 ffprobe.exe
 app_settings.txt
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer outputs
+Output/
+installer/app.exe
+installer/*.exe
+installer/Output/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+
+# Config files that might contain sensitive information
+config.ini
+settings.json
+.env
