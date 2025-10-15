@@ -134,5 +134,29 @@
     "type": "success",
     "timestamp": "2025-10-14T16:01:49.236557",
     "read": false
+  },
+  {
+    "id": 18,
+    "title": "Update Available",
+    "message": "New media engine version available: 2025.10.14",
+    "type": "info",
+    "timestamp": "2025-10-15T16:15:26.534088",
+    "read": false
+  },
+  {
+    "id": 19,
+    "title": "Application Started",
+    "message": "Media Downloader is ready to use",
+    "type": "success",
+    "timestamp": "2025-10-15T16:15:27.053945",
+    "read": false
+  },
+  {
+    "id": 20,
+    "title": "Test Notification",
+    "message": "This is a test notification",
+    "type": "info",
+    "timestamp": "2025-10-15T16:15:27.920061",
+    "read": false
   }
 ]
