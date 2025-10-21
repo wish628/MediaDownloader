@@ -1,92 +1,85 @@
 name: Build Android APK
+name: Build Android APK
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
 
-jobs:
+      env:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install cython==0.29.30
-        pip install buildozer
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install cython==0.29.30
+          pip install buildozer
 
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y gettext zipalign apksigner
-        
-        # Install JDK 11
-        sudo apt install -y openjdk-11-jdk
-        echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
-        
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y gettext zipalign apksigner
+          # Install JDK 11
+          sudo apt install -y openjdk-11-jdk
+          echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
           # Install Android build tools
           sudo apt install -y android-sdk-build-tools
-        
-        # Install other required packages
-        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
-
+          # Install other required packages
+          sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
           # Additional build dependencies
           sudo apt install -y build-essential ccache libncurses-dev
 
-    - name: Initialize buildozer
-      run: |
-        buildozer init
+      - name: Initialize buildozer
+        run: |
+          buildozer init
 
       - name: Accept Android SDK Licenses
         run: |
           yes | sudo apt-get install sdkmanager
           yes | sdkmanager --licenses
 
-    - name: Build APK
-      run: |
-        # Increase timeout for the build process
-        timeout 3600 buildozer android debug
+      - name: Build APK
+        run: |
+          timeout 3600 buildozer android debug
 
-    - name: Sign APK (if keystore is provided)
-      if: env.ANDROID_KEYSTORE_B64 != null
-      run: |
-        # Decode keystore
-        echo "$ANDROID_KEYSTORE_B64" | base64 --decode > release.keystore
-        
-        # Align and sign APK
-        zipalign -v 4 bin/*.apk mediadownloader-aligned.apk
-        apksigner sign --ks release.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android mediadownloader-aligned.apk
+      - name: Sign APK (if keystore is provided)
+        if: env.ANDROID_KEYSTORE_B64 != null
+        run: |
+          echo "$ANDROID_KEYSTORE_B64" | base64 --decode > release.keystore
+          zipalign -v 4 bin/*.apk mediadownloader-aligned.apk
+          apksigner sign --ks release.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android mediadownloader-aligned.apk
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: mediadownloader-apk
-        path: |
-          bin/*.apk
-          mediadownloader-aligned.apk
-        if-no-files-found: warn
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mediadownloader-apk
+          path: |
+            bin/*.apk
+            mediadownloader-aligned.apk
+          if-no-files-found: warn
 
-    - name: Create Release and Upload Asset
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ github.run_number }}
-        name: Release ${{ github.run_number }}
-        files: |
-          bin/*.apk
-          mediadownloader-aligned.apk
-        draft: false
-        prerelease: false
-      env:
+      - name: Create Release and Upload Asset
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          files: |
+            bin/*.apk
+            mediadownloader-aligned.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
