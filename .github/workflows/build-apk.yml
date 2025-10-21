@@ -35,12 +35,23 @@ jobs:
         sudo apt install -y openjdk-11-jdk
         echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
         
+          # Install Android build tools
+          sudo apt install -y android-sdk-build-tools
+        
         # Install other required packages
         sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+
+          # Additional build dependencies
+          sudo apt install -y build-essential ccache libncurses-dev
 
     - name: Initialize buildozer
       run: |
         buildozer init
+
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sudo apt-get install sdkmanager
+          yes | sdkmanager --licenses
 
     - name: Build APK
       run: |
