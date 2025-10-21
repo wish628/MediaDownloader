@@ -1,0 +1,89 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install cython==0.29.30
+        pip install buildozer
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y gettext zipalign apksigner
+        
+        # Install JDK 11
+        sudo apt install -y openjdk-11-jdk
+        echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
+        
+        # Install other required packages
+        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+
+    - name: Initialize buildozer
+      run: |
+        buildozer init
+
+    - name: Build APK
+      run: |
+        # Increase timeout for the build process
+        timeout 3600 buildozer android debug
+
+    - name: Sign APK (if keystore is provided)
+      if: env.ANDROID_KEYSTORE_B64 != null
+      run: |
+        # Decode keystore
+        echo "$ANDROID_KEYSTORE_B64" | base64 --decode > release.keystore
+        
+        # Align and sign APK
+        zipalign -v 4 bin/*.apk mediadownloader-aligned.apk
+        apksigner sign --ks release.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android mediadownloader-aligned.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: mediadownloader-apk
+        path: |
+          bin/*.apk
+          mediadownloader-aligned.apk
+        if-no-files-found: warn
+
+    - name: Create Release
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release ${{ github.run_number }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./bin/*.apk
+        asset_name: mediadownloader-release.apk
+        asset_content_type: application/vnd.android.package-archive

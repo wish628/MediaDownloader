@@ -18,6 +18,7 @@ A powerful and user-friendly desktop application for downloading media from vari
 - [Download History](#download-history)
 - [Troubleshooting](#troubleshooting)
 - [Building from Source](#building-from-source)
+- [Android Version](#android-version)
 - [License](#license)
 
 ## Features
@@ -194,6 +195,32 @@ Common issues and solutions:
 1. Install Inno Setup 6
 2. Run [create_installer.bat](create_installer.bat) to create the Windows installer
 
+## Android Version
+
+Media Downloader is also available for Android devices. You can build the Android APK using GitHub Actions without needing Linux locally.
+
+### Building the Android APK
+
+1. Fork this repository or push it to your own GitHub account
+2. GitHub Actions will automatically build the APK
+3. Download the APK from the Actions tab
+
+For detailed instructions, see [ANDROID_BUILD_INSTRUCTIONS.md](ANDROID_BUILD_INSTRUCTIONS.md).
+
+### Features on Android
+
+- Download videos and audio from supported platforms
+- Simple and intuitive touch interface
+- Download history tracking
+- Settings customization
+- Progress tracking with pause/resume support
+
+### Requirements
+
+- Android 5.0 (Lollipop) or higher
+- At least 100MB of free storage space
+- Internet connection for downloading media
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -201,8 +228,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Media engine for downloading
-- [PyQt6](https://pypi.org/project/PyQt6/) - GUI framework
-- [PyInstaller](https://pyinstaller.org/) - Application bundling
+- [PyQt6](https://pypi.org/project/PyQt6/) - GUI framework (Desktop)
+- [Kivy](https://kivy.org/) - GUI framework (Android)
+- [PyInstaller](https://pyinstaller.org/) - Application bundling (Desktop)
+- [Buildozer](https://buildozer.readthedocs.io/) - APK building tool (Android)
 - [FFmpeg](https://ffmpeg.org/) - Media processing (bundled)
 
 ---
