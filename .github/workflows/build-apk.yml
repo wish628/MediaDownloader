@@ -1,5 +1,4 @@
 name: Build Android APK
-name: Build Android APK
 
 on:
   push:
@@ -8,7 +7,7 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-      env:
+            bin/*.apk
   build:
     runs-on: ubuntu-latest
     steps:
@@ -70,13 +69,18 @@ on:
           if-no-files-found: warn
 
       - name: Create Release and Upload Asset
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ github.run_number }}
           name: Release ${{ github.run_number }}
           files: |
             bin/*.apk
+            mediadownloader-aligned.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             mediadownloader-aligned.apk
           draft: false
           prerelease: false
